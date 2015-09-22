@@ -9,9 +9,9 @@ form.validate()
 def render_field(field):
     print('--------------')
     if field.widget:
-        print(field.widget.label)
+        print('label:"{}", req:{}'.format(field.widget.label, field.widget.required))
         if field.widget.errors:
-            print(field.widget.errors)
+            print('errors:', field.widget.errors)
         print(field.widget())
     if field.children:
         print('peppercorn marker START')
@@ -21,3 +21,6 @@ def render_field(field):
 
 for field in form:
     render_field(field)
+
+
+print('FORM ERRORS:', form.errors)
