@@ -65,7 +65,7 @@ class ZigguratForm(object):
 
     def validate(self):
         # colander validation
-        self.errors = {}
+        self.errors = collections.defaultdict(list)
         self.valid = True
 
         try:
