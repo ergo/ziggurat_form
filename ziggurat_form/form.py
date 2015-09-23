@@ -1,8 +1,11 @@
-import colander
-import copy
-import peppercorn
 import collections
+import copy
+
+import colander
+import peppercorn
+
 from ziggurat_form.widgets import BaseWidget
+
 
 class ZigguratForm(object):
     def __init__(self, schema_cls, bind_values=None, after_bind_callback=None):
@@ -81,7 +84,8 @@ class ZigguratForm(object):
 
     def populate_obj(self, obj):
         """
-        Populates the attributes of the passed `obj` with data from the deserialized colander data.
+        Populates the attributes of the passed `obj` with data from the
+        deserialized colander data.
         """
         for node in self.schema_instance.children:
             setattr(obj, node.name, self.data[node.name])
