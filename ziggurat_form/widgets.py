@@ -1,5 +1,7 @@
 import webhelpers2.html.tags as tags
+
 from ziggurat_form.exceptions import FormInvalid
+
 
 class BaseWidget(object):
 
@@ -13,7 +15,8 @@ class BaseWidget(object):
 
     def validate(self):
         """
-        Return all messages returned by validators, if validator returns True then it is considered to pass
+        Return all messages returned by validators, if validator returns True
+        then it is considered to pass
         """
         widget_errors = []
         for validator in self.validators:
@@ -34,7 +37,9 @@ class BaseWidget(object):
         if self.form is None:
             self.form = form
         if self.label is None:
-            self.label = self.field.title or self.field.name.replace('_', ' ').capitalize()
+            self.label = (
+                self.field.title or
+                self.field.name.replace('_', ' ').capitalize())
 
     @property
     def errors(self):
@@ -44,7 +49,8 @@ class BaseWidget(object):
         val = ''
         if self.form.data and self.field.name in self.form.data:
             val = self.form.data[self.field.name]
-        elif self.form.untrusted_data and self.field.name in self.form.untrusted_data:
+        elif (self.form.untrusted_data and
+              self.field.name in self.form.untrusted_data):
             val = self.form.untrusted_data[self.field.name]
 
         return tags.text(self.field.name, val, *args, **kwargs)

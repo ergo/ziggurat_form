@@ -1,15 +1,20 @@
-from ziggurat_form.test_schemas import UserSchema
 from ziggurat_form.form import ZigguratForm
-data = {'password':'x'}
+from ziggurat_form.test_schemas import UserSchema
+
+
+data = {'password': 'x'}
 
 form = ZigguratForm(UserSchema)
 form.set_data(data)
 form.validate()
 
+
 def render_field(field):
     print('--------------')
     if field.widget:
-        print('label:"{}", req:{}'.format(field.widget.label, field.widget.required))
+        print(
+            'label:"{}", req:{}'.format(
+                field.widget.label, field.widget.required))
         if field.widget.errors:
             print('errors:', field.widget.errors)
         print(field.widget())
