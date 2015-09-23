@@ -12,9 +12,9 @@ class ZigguratForm(object):
         self.schema_cls = schema_cls
         self.data = {}
         self.untrusted_data = {}
-        self.schema_instance = schema_cls(after_bind=after_bind_callback)
-        if bind_values:
-            self.schema_instance = self.schema_instance.bind(**bind_values)
+        self.schema_instance = (
+            self.schema_instance.bind(**bind_values)
+            if bind_values else schema_cls(after_bind=after_bind_callback))
         self.valid = None
         self.errors = collections.defaultdict(list)
         self.set_nodes()
@@ -42,17 +42,19 @@ class ZigguratForm(object):
 
     def set_nodes(self):
         for node in self.paths():
-            if node[-1].widget is None:
-                node[-1].widget = BaseWidget()
-            if node[-1].widget:
-                node[-1].widget.update_values(node[-1], self)
+            widget = node[-1].widget
+            if widget is None:
+                widget = BaseWidget()
+            if widget:
+                widget.update_values(node[-1], self)
 
+    @property
     def field_names(self):
         return [n.name for n in self.schema_instance.children]
 
     def set_data(self, struct=None, obj=None, **kwargs):
         tmp_struct = {}
-        for field in self.field_names():
+        for field in self.field_names:
             if field in struct:
                 tmp_struct[field] = copy.deepcopy(struct[field])
             elif hasattr(obj, field):
@@ -63,19 +65,20 @@ class ZigguratForm(object):
 
     def validate(self):
         # colander validation
+        self.errors = {}
+        self.valid = True
+
         try:
             self.schema_instance.deserialize(self.untrusted_data)
-            self.errors = {}
-            self.valid = True
         except colander.Invalid as exc:
             self.valid = False
-            for k, v in exc.asdict().items():
-                self.errors[k].append(v)
+            self.errors.update(exc.asdict())
 
         # custom widget validators
         for node in self.paths():
-            if node[-1].widget and node[-1].widget.validators:
-                errors = node[-1].widget.validate()
+            widget = node[-1].widget
+            if widget and widget.validators:
+                errors = widget.validate()
                 if errors:
                     self.errors[node[-1].name].extend(errors)
                     self.valid = False

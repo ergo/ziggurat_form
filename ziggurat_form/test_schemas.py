@@ -1,5 +1,8 @@
 import colander
+
 from ziggurat_form.widgets import BaseWidget, FormInvalid
+
+
 choices = (
     ('', '- Select -'),
     ('habanero', 'Habanero'),
