@@ -1,27 +1,24 @@
-import collections
 import copy
 
 import colander
 import peppercorn
 
-from ziggurat_form.widgets import BaseWidget
-
+from ziggurat_form.widgets import MappingWidget, PositionalWidget, TextWidget
 
 class ZigguratForm(object):
     def __init__(self, schema_cls, bind_values=None, after_bind_callback=None):
         self.schema_cls = schema_cls
         self.data = {}
         self.untrusted_data = {}
-        self.schema_instance = (
-            self.schema_instance.bind(**bind_values)
-            if bind_values else schema_cls(after_bind=after_bind_callback))
+        self.schema_instance = schema_cls(after_bind=after_bind_callback)
+        if bind_values:
+            self.schema_instance = self.schema_instance.bind(**bind_values)
         self.valid = None
-        self.errors = collections.defaultdict(list)
         self.set_nodes()
 
     def paths(self):
-        """ A generator which returns each path through the exception
-        graph.  Each path is represented as a tuple of exception
+        """ A generator which returns each path through the node
+        graph.  Each path is represented as a tuple of schema
         nodes.  Within each tuple, the leftmost item will represent
         the root schema node, the rightmost item will represent the
         leaf schema node."""
@@ -41,12 +38,17 @@ class ZigguratForm(object):
         return traverse(self.schema_instance, [])
 
     def set_nodes(self):
-        for node in self.paths():
-            widget = node[-1].widget
-            if widget is None:
-                widget = BaseWidget()
-            if widget:
-                widget.update_values(node[-1], self)
+        for path in self.paths():
+            for leaf in path:
+                if leaf.widget is None:
+                    if isinstance(leaf.typ, colander.Mapping):
+                        leaf.widget = MappingWidget()
+                    elif isinstance(leaf.typ, colander.Positional):
+                        leaf.widget = PositionalWidget()
+                    else:
+                        leaf.widget = TextWidget()
+                if leaf.widget:
+                    leaf.widget.update_values(leaf, self)
 
     @property
     def field_names(self):
@@ -65,22 +67,22 @@ class ZigguratForm(object):
 
     def validate(self):
         # colander validation
-        self.errors = collections.defaultdict(list)
         self.valid = True
-
         try:
             self.schema_instance.deserialize(self.untrusted_data)
         except colander.Invalid as exc:
             self.valid = False
-            self.errors.update(exc.asdict())
+            for path in exc.paths():
+                leaf = path[-1]
+                errors = [leaf.asdict()[leaf.node.name]]
+                if leaf.node.widget:
+                    leaf.node.widget.schema_errors = errors
 
         # custom widget validators
-        for node in self.paths():
-            widget = node[-1].widget
-            if widget and widget.validators:
-                errors = widget.validate()
-                if errors:
-                    self.errors[node[-1].name].extend(errors)
+        for path in self.paths():
+            leaf = path[-1]
+            if leaf.widget and leaf.widget.validators:
+                if not leaf.widget.validate():
                     self.valid = False
 
         return self.valid
@@ -95,6 +97,3 @@ class ZigguratForm(object):
 
     def __iter__(self):
         return iter(self.schema_instance.children)
-
-    def __html__(self):
-        return self.render()

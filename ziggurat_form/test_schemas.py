@@ -1,6 +1,6 @@
 import colander
 
-from ziggurat_form.widgets import BaseWidget, FormInvalid
+from ziggurat_form.widgets import TextWidget, FormInvalid
 
 
 choices = (
@@ -45,11 +45,10 @@ class AddressSchema(colander.MappingSchema):
     city = colander.SchemaNode(
         colander.String(), validator=colander.Length(min=3))
 
-    person = Friend()
 
 
 def test_validator(field, form):
-    print('validating', field, form)
+    # print('validating', field, form)
     raise FormInvalid("Custom validation error")
     return True
 
@@ -57,18 +56,22 @@ def test_validator(field, form):
 class UserSchema(colander.MappingSchema):
     user_name = colander.SchemaNode(colander.String(),
                                     validator=colander.Length(min=3),
-                                    widget=BaseWidget())
+                                    widget=TextWidget(validators=[test_validator]))
     password = colander.SchemaNode(colander.String(),
                                    validator=colander.Length(min=3),
                                    title='Lilu Dallas Multipass!',
                                    description="Korben nice!",
                                    zorg='Not nice!',
-                                   widget=BaseWidget())
+                                   widget=TextWidget())
     email = colander.SchemaNode(colander.String(),
                                 validator=colander.Length(min=3))
 
-    friend = AddressSchema()
+    address = AddressSchema()
+
+    phones = Phones()
 
     optional_field = colander.SchemaNode(
         colander.String(), missing='OK',
-        widget=BaseWidget(validators=[test_validator]))
+        widget=TextWidget(validators=[test_validator]))
+
+    subperson = Person()
