@@ -1,14 +1,16 @@
+import copy
 import webhelpers2.html.tags as tags
 
 from ziggurat_form.exceptions import FormInvalid
-
 
 class BaseWidget(object):
 
     _marker_type = None
 
-    def __init__(self, validators=None, *args, **kwargs):
+    def __init__(self, validators=None, cloned=False, *args, **kwargs):
+        self.cloned = cloned
         self.label = None
+        self.dotted_path = ''
         self.args = args
         self.kwargs = kwargs
         self.field = None
@@ -16,6 +18,13 @@ class BaseWidget(object):
         self.validators = validators or []
         self.widget_errors = []
         self.schema_errors = []
+
+    def clone(self):
+        clone = copy.copy(self)
+        clone.cloned = True
+        clone.field = None
+        clone.form = None
+        return clone
 
     def validate(self):
         """
@@ -55,13 +64,15 @@ class BaseWidget(object):
     @property
     def marker_start(self):
         if self._marker_type:
-            return tags.hidden('__start__', '{}:{}'.format(self.field.name, self._marker_type), id=None)
+            return tags.hidden('__start__', '{}:{}'.format(self.field.name or '_ziggurat_form_field_',
+                                                           self._marker_type), id=None)
         return ''
 
     @property
     def marker_end(self):
         if self._marker_type:
-            return tags.hidden('__end__', '{}:{}'.format(self.field.name, self._marker_type), id=None)
+            return tags.hidden('__end__', '{}:{}'.format(self.field.name or '_ziggurat_form_field_',
+                                                         self._marker_type), id=None)
         return ''
 
 class MappingWidget(BaseWidget):
@@ -81,11 +92,6 @@ class PositionalWidget(BaseWidget):
 class TextWidget(BaseWidget):
 
     def __call__(self, *args, **kwargs):
-        val = ''
-        if self.form.data and self.field.name in self.form.data:
-            val = self.form.data[self.field.name]
-        elif (self.form.untrusted_data and
-                      self.field.name in self.form.untrusted_data):
-            val = self.form.untrusted_data[self.field.name]
+        val = self.form.flattened_data.get(self.dotted_path)
 
         return tags.text(self.field.name, val, *args, **kwargs)
