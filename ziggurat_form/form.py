@@ -73,25 +73,24 @@ class ZigguratForm(object):
 
                 widget.name = leaf.name
                 widget.node = leaf
-                widget.parent_widget = parent_widget
-                widget.get_data_from_parent()
 
-                print('--' * i,
+                print('-' * i,
                       'parent:', repr(parent_widget),
                       'leaf:', leaf.name, 't:', widget.__class__.__name__,
                       'p:', [p.name for p in path[1:]])
 
-                print('parent data', parent_widget.data)
-
                 if parent_w_is_positional:
-                    # print('POSITIONAL PARENT FOR', widget.name, 'P', parent_widget)
-                    for i, entry in enumerate(parent_widget.data):
+                    data = parent_widget.get_data_from_parent()
+                    for i, entry in enumerate(data):
                         cloned = widget.clone()
-                        cloned.data = entry
                         cloned.position = i
                         parent_widget.add(cloned)
                 else:
-                    parent_widget.add(widget)
+                    if isinstance(parent_widget.parent_widget, PositionalWidget):
+                        for swidget in parent_widget.parent_widget.children:
+                            swidget.add(widget.clone())
+                    else:
+                        parent_widget.add(widget)
 
                 parent_widget = widget
             print('END')

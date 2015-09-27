@@ -72,10 +72,16 @@ class BaseWidget(object):
 
     def get_data_from_parent(self):
         parent_w_is_mapping = isinstance(self.parent_widget, MappingWidget)
-        if parent_w_is_mapping:
-            print('getting data from', self.parent_widget)
+        parent_w_is_positional = isinstance(self.parent_widget, PositionalWidget)
+        # print('getting data from', self.parent_widget)
+        if parent_w_is_positional:
+            data = self.parent_widget.get_data_from_parent()
+            if data:
+                return data[self.position]
+
+        elif parent_w_is_mapping:
             if self.parent_widget.data:
-                self.data = self.parent_widget.data[self.name]
+                return self.parent_widget.data[self.name]
 
 
 class MappingWidget(BaseWidget):
@@ -94,10 +100,8 @@ class MappingWidget(BaseWidget):
 
     def add(self, widget):
         print('adding', widget.name, 'to mapping', self.name)
+        widget.parent_widget = self
         self.children_dict[widget.name] = widget
-
-    def get_data_from_parent(self):
-        pass
 
 class FormWidget(MappingWidget):
 
@@ -118,11 +122,11 @@ class PositionalWidget(BaseWidget):
 
     def add(self, widget):
         print('adding', widget.name, 'to list', self.name)
+        widget.parent_widget = self
         self.children.append(widget)
 
 
 class TextWidget(BaseWidget):
     def __call__(self, *args, **kwargs):
-        val = self.data or ''
-        # print(self.data)
+        val = self.get_data_from_parent()
         return tags.text(self.name, val, *args, **kwargs)
