@@ -1,29 +1,30 @@
+import collections
 import copy
 import webhelpers2.html.tags as tags
 
 from ziggurat_form.exceptions import FormInvalid
 
 class BaseWidget(object):
-
     _marker_type = None
 
-    def __init__(self, validators=None, cloned=False, *args, **kwargs):
-        self.cloned = cloned
+    def __init__(self, validators=None, data=None, *args, **kwargs):
+        self.cloned = False
         self.label = None
-        self.dotted_path = ''
+        self.name = None
         self.args = args
         self.kwargs = kwargs
         self.field = None
         self.form = None
+        self.parent_widget = None
         self.validators = validators or []
         self.widget_errors = []
         self.schema_errors = []
+        self.position = 0
+        self.data = data
 
     def clone(self):
         clone = copy.copy(self)
         clone.cloned = True
-        clone.field = None
-        clone.form = None
         return clone
 
     def validate(self):
@@ -44,15 +45,9 @@ class BaseWidget(object):
     def required(self):
         return self.field.required or len(self.validators) > 0
 
-    def update_values(self, field, form):
-        if self.field is None:
-            self.field = field
-        if self.form is None:
-            self.form = form
-        if self.label is None:
-            self.label = (
-                self.field.title or
-                self.field.name.replace('_', ' ').capitalize())
+    # @property
+    # def label(self):
+    #     return self.label or self.name.replace('_', ' ').capitalize()
 
     @property
     def errors(self):
@@ -75,23 +70,59 @@ class BaseWidget(object):
                                                          self._marker_type), id=None)
         return ''
 
-class MappingWidget(BaseWidget):
+    def get_data_from_parent(self):
+        parent_w_is_mapping = isinstance(self.parent_widget, MappingWidget)
+        if parent_w_is_mapping:
+            print('getting data from', self.parent_widget)
+            if self.parent_widget.data:
+                self.data = self.parent_widget.data[self.name]
 
+
+class MappingWidget(BaseWidget):
     _marker_type = 'mapping'
+
+    def __init__(self, *args, **kwargs):
+        super(MappingWidget, self).__init__(*args, **kwargs)
+        self.children_dict = collections.OrderedDict()
+
+    @property
+    def children(self):
+        return list(self.children_dict.values())
+
+    def __call__(self, *args, **kwargs):
+        return ''
+
+    def add(self, widget):
+        print('adding', widget.name, 'to mapping', self.name)
+        self.children_dict[widget.name] = widget
+
+    def get_data_from_parent(self):
+        pass
+
+class FormWidget(MappingWidget):
+
+    name = "__root__"
 
     def __call__(self, *args, **kwargs):
         return ''
 
 class PositionalWidget(BaseWidget):
-
     _marker_type = 'sequence'
+
+    def __init__(self, *args, **kwargs):
+        super(PositionalWidget, self).__init__(*args, **kwargs)
+        self.children = []
 
     def __call__(self, *args, **kwargs):
         return ''
 
+    def add(self, widget):
+        print('adding', widget.name, 'to list', self.name)
+        self.children.append(widget)
+
+
 class TextWidget(BaseWidget):
-
     def __call__(self, *args, **kwargs):
-        val = self.form.flattened_data.get(self.dotted_path)
-
-        return tags.text(self.field.name, val, *args, **kwargs)
+        val = self.data or ''
+        # print(self.data)
+        return tags.text(self.name, val, *args, **kwargs)

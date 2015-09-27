@@ -2,9 +2,11 @@ import copy
 import colander
 import peppercorn
 import weakref
+import types
 import pprint
 
-from ziggurat_form.widgets import MappingWidget, PositionalWidget, TextWidget
+from ziggurat_form.widgets import MappingWidget, PositionalWidget, TextWidget, FormWidget, BaseWidget
+
 
 class ZigguratForm(object):
     def __init__(self, schema_cls, bind_values=None, after_bind_callback=None):
@@ -12,11 +14,13 @@ class ZigguratForm(object):
         self.data = {}
         self.untrusted_data = None
         self.flattened_data = {}
-        self.schema_instance = schema_cls(after_bind=after_bind_callback)
-        if bind_values:
-            self.schema_instance = self.schema_instance.bind(**bind_values)
+        self.bind_values = bind_values
+        self.after_bind_callback = after_bind_callback
         self.valid = None
-        self.set_nodes()
+        self.schema_instance = self.schema_cls(after_bind=self.after_bind_callback)
+        if self.bind_values:
+            self.schema_instance = self.schema_instance.bind(**self.bind_values)
+            # self.set_nodes()
 
     def paths(self):
         """ A generator which returns each path through the node
@@ -40,29 +44,59 @@ class ZigguratForm(object):
         return traverse(self.schema_instance, [])
 
     def set_nodes(self):
+        self.widget = FormWidget()
+        self.widget.data = self.untrusted_data
+
         for path in self.paths():
-            dotted_path = '.'.join([l.name for l in path])[1:]
-            for leaf in path:
-                if leaf.widget is None:
-                    if isinstance(leaf.typ, colander.Mapping):
-                        leaf.widget = MappingWidget()
-                    elif isinstance(leaf.typ, colander.Positional):
-                        leaf.widget = PositionalWidget()
-                    else:
-                        leaf.widget = TextWidget()
+            print('\n\nSTART', [p.name for p in path])
+            parent_widget = None
+            for i, leaf in enumerate(path):
+                is_mapping = isinstance(leaf.typ, colander.Mapping)
+                is_positional = isinstance(leaf.typ, colander.Positional)
+                parent_w_is_mapping = isinstance(parent_widget, MappingWidget)
+                parent_w_is_positional = isinstance(parent_widget, PositionalWidget)
 
-                leaf.widget = leaf.widget.clone()
+                if i == 0:
+                    continue
 
-                if leaf.widget:
-                    leaf.widget.update_values(weakref.proxy(leaf),
-                                              weakref.proxy(self))
-            if path[-1].widget:
-                path[-1].widget.dotted_path = dotted_path
+                if is_mapping:
+                    widget = MappingWidget()
+                elif is_positional:
+                    widget = PositionalWidget()
+                else:
+                    widget = TextWidget()
 
+                # root widget
+                if not parent_widget:
+                    print('setting root parent')
+                    parent_widget = self.widget
 
-    @property
-    def field_names(self):
-        return [n.name for n in self.schema_instance.children]
+                widget.name = leaf.name
+                widget.node = leaf
+                widget.parent_widget = parent_widget
+                widget.get_data_from_parent()
+
+                print('--' * i,
+                      'parent:', repr(parent_widget),
+                      'leaf:', leaf.name, 't:', widget.__class__.__name__,
+                      'p:', [p.name for p in path[1:]])
+
+                print('parent data', parent_widget.data)
+
+                if parent_w_is_positional:
+                    # print('POSITIONAL PARENT FOR', widget.name, 'P', parent_widget)
+                    for i, entry in enumerate(parent_widget.data):
+                        cloned = widget.clone()
+                        cloned.data = entry
+                        cloned.position = i
+                        parent_widget.add(cloned)
+                else:
+                    parent_widget.add(widget)
+
+                parent_widget = widget
+            print('END')
+        # import pdb
+        # pdb.set_trace()
 
     def set_data(self, struct=None, obj=None, **kwargs):
         parsed_data = peppercorn.parse(struct.items())
@@ -70,9 +104,11 @@ class ZigguratForm(object):
             self.untrusted_data = parsed_data['_ziggurat_form_field_']
         else:
             self.untrusted_data = parsed_data
-        if self.untrusted_data:
-            self.flattened_data = self.schema_instance.flatten(self.untrusted_data)
-            print(self.flattened_data)
+
+        self.untrusted_data = self.schema_instance.serialize(self.untrusted_data)
+        self.set_nodes()
+
+
         # for field in self.field_names:
         #     if field in struct:
         #         tmp_struct[field] = copy.deepcopy(struct[field])
