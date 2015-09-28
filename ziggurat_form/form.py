@@ -44,58 +44,31 @@ class ZigguratForm(object):
         return traverse(self.schema_instance, [])
 
     def set_nodes(self):
-        self.widget = FormWidget()
-        self.widget.data = self.untrusted_data
-
         for path in self.paths():
-            print('\n\nSTART', [p.name for p in path])
-            parent_widget = None
             for i, leaf in enumerate(path):
                 is_mapping = isinstance(leaf.typ, colander.Mapping)
                 is_positional = isinstance(leaf.typ, colander.Positional)
-                parent_w_is_mapping = isinstance(parent_widget, MappingWidget)
-                parent_w_is_positional = isinstance(parent_widget, PositionalWidget)
 
                 if i == 0:
-                    continue
-
-                if is_mapping:
+                    widget = FormWidget()
+                elif is_mapping:
                     widget = MappingWidget()
                 elif is_positional:
                     widget = PositionalWidget()
                 else:
                     widget = TextWidget()
 
-                # root widget
-                if not parent_widget:
-                    print('setting root parent')
-                    parent_widget = self.widget
-
-                widget.name = leaf.name
                 widget.node = leaf
+                if leaf.widget is None:
+                    leaf.widget = widget
 
-                print('-' * i,
-                      'parent:', repr(parent_widget),
-                      'leaf:', leaf.name, 't:', widget.__class__.__name__,
-                      'p:', [p.name for p in path[1:]])
+                if i < len(path) - 1:
+                    widget.add_widget(path[i + 1])
+                if i > 0:
+                    path[i - 1].widget.add_widget(widget)
 
-                if parent_w_is_positional:
-                    data = parent_widget.get_data_from_parent()
-                    for i, entry in enumerate(data):
-                        cloned = widget.clone()
-                        cloned.position = i
-                        parent_widget.add(cloned)
-                else:
-                    if isinstance(parent_widget.parent_widget, PositionalWidget):
-                        for swidget in parent_widget.parent_widget.children:
-                            swidget.add(widget.clone())
-                    else:
-                        parent_widget.add(widget)
-
-                parent_widget = widget
-            print('END')
-        # import pdb
-        # pdb.set_trace()
+        self.widget = self.schema_instance.widget
+        self.widget.data = self.untrusted_data
 
     def set_data(self, struct=None, obj=None, **kwargs):
         parsed_data = peppercorn.parse(struct.items())

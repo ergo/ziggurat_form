@@ -1,26 +1,31 @@
+import colander
 import collections
 import copy
 import webhelpers2.html.tags as tags
 
 from ziggurat_form.exceptions import FormInvalid
 
+
 class BaseWidget(object):
     _marker_type = None
 
-    def __init__(self, validators=None, data=None, *args, **kwargs):
+    def __init__(self, custom_label=None, validators=None, data=None, *args, **kwargs):
         self.cloned = False
-        self.label = None
-        self.name = None
+        self.custom_label = None
         self.args = args
         self.kwargs = kwargs
-        self.field = None
         self.form = None
         self.parent_widget = None
         self.validators = validators or []
         self.widget_errors = []
         self.schema_errors = []
-        self.position = 0
+        self.position = None
         self.data = data
+        self.node = None
+
+    @property
+    def name(self):
+        return self.node.name
 
     def clone(self):
         clone = copy.copy(self)
@@ -45,9 +50,9 @@ class BaseWidget(object):
     def required(self):
         return self.field.required or len(self.validators) > 0
 
-    # @property
-    # def label(self):
-    #     return self.label or self.name.replace('_', ' ').capitalize()
+    @property
+    def label(self):
+        return self.custom_label or self.node.name.replace('_', ' ').capitalize()
 
     @property
     def errors(self):
@@ -73,7 +78,7 @@ class BaseWidget(object):
     def get_data_from_parent(self):
         parent_w_is_mapping = isinstance(self.parent_widget, MappingWidget)
         parent_w_is_positional = isinstance(self.parent_widget, PositionalWidget)
-        # print('getting data from', self.parent_widget)
+
         if parent_w_is_positional:
             data = self.parent_widget.get_data_from_parent()
             if data:
@@ -82,6 +87,19 @@ class BaseWidget(object):
         elif parent_w_is_mapping:
             if self.parent_widget.data:
                 return self.parent_widget.data[self.name]
+            else:
+                data = self.parent_widget.get_data_from_parent()
+                if data:
+                    return data.get(self.name)
+
+
+class PositionalResultWrapper(object):
+    def __init__(self, result):
+        self.result = result
+
+    @property
+    def children(self):
+        return self.result
 
 
 class MappingWidget(BaseWidget):
@@ -89,44 +107,57 @@ class MappingWidget(BaseWidget):
 
     def __init__(self, *args, **kwargs):
         super(MappingWidget, self).__init__(*args, **kwargs)
-        self.children_dict = collections.OrderedDict()
+        self.children_widget_dict = collections.OrderedDict()
 
     @property
     def children(self):
-        return list(self.children_dict.values())
+        print(list(self.children_widget_dict.values()))
+        return list(self.children_widget_dict.values())
 
     def __call__(self, *args, **kwargs):
         return ''
 
-    def add(self, widget):
-        print('adding', widget.name, 'to mapping', self.name)
+    def add_widget(self, widget):
         widget.parent_widget = self
-        self.children_dict[widget.name] = widget
+        self.children_widget_dict[widget.name] = widget
+
 
 class FormWidget(MappingWidget):
-
     name = "__root__"
 
     def __call__(self, *args, **kwargs):
         return ''
+
 
 class PositionalWidget(BaseWidget):
     _marker_type = 'sequence'
 
     def __init__(self, *args, **kwargs):
         super(PositionalWidget, self).__init__(*args, **kwargs)
-        self.children = []
+        self.children_widgets = []
 
     def __call__(self, *args, **kwargs):
         return ''
 
-    def add(self, widget):
-        print('adding', widget.name, 'to list', self.name)
+    def add_widget(self, widget):
         widget.parent_widget = self
-        self.children.append(widget)
+        self.children_widgets.append(widget)
+
+    @property
+    def children(self):
+        data = self.get_data_from_parent()
+        if not data:
+            data = [{}]
+        for i, entry in enumerate(data):
+            for widget_cls in self.children_widgets:
+                cloned = widget_cls.clone()
+                cloned.widget.position = i
+                yield cloned.widget
 
 
 class TextWidget(BaseWidget):
     def __call__(self, *args, **kwargs):
         val = self.get_data_from_parent()
+        if val is colander.null:
+            val = ''
         return tags.text(self.name, val, *args, **kwargs)
