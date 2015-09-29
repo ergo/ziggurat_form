@@ -5,7 +5,7 @@ import weakref
 import types
 import pprint
 
-from ziggurat_form.widgets import MappingWidget, PositionalWidget, TextWidget, FormWidget, BaseWidget
+from ziggurat_form.widgets import MappingWidget, PositionalWidget, TextWidget, FormWidget, BaseWidget, FormField
 
 
 class ZigguratForm(object):
@@ -44,28 +44,27 @@ class ZigguratForm(object):
         return traverse(self.schema_instance, [])
 
     def set_nodes(self):
+        self.schema_instance.widget = FormWidget()
+        self.schema_instance.widget.node = self.schema_instance
         for path in self.paths():
+            parent_node = self.schema_instance
             for i, leaf in enumerate(path):
+                if i == 0:
+                    continue
                 is_mapping = isinstance(leaf.typ, colander.Mapping)
                 is_positional = isinstance(leaf.typ, colander.Positional)
-
-                if i == 0:
-                    widget = FormWidget()
-                elif is_mapping:
-                    widget = MappingWidget()
+                if is_mapping:
+                    widget = MappingWidget
                 elif is_positional:
-                    widget = PositionalWidget()
+                    widget = PositionalWidget
                 else:
-                    widget = TextWidget()
+                    widget = TextWidget
 
-                widget.node = leaf
                 if leaf.widget is None:
-                    leaf.widget = widget
+                    leaf.widget = widget()
+                    leaf.widget.node = leaf
+                parent_node = leaf
 
-                if i < len(path) - 1:
-                    widget.add_widget(path[i + 1])
-                if i > 0:
-                    path[i - 1].widget.add_widget(widget)
 
         self.widget = self.schema_instance.widget
         self.widget.data = self.untrusted_data
