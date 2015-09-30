@@ -1,5 +1,6 @@
 import colander
 import collections
+import pprint
 import copy
 import webhelpers2.html.tags as tags
 
@@ -32,20 +33,24 @@ class BaseWidget(object):
         self.data = data
         self.node = None
         self.parent_widget = None
+        self.required = False
 
     @property
     def name(self):
         return self.node.name
 
     def __str__(self):
-        return '<{} {} of {}: p>'.format(
+        return '<{} {} of {}: p: {}>'.format(
             self.__class__.__name__,
             self.name,
+            self.parent_widget.name if self.parent_widget else '',
             self.position
         )
 
     def clone(self):
-        clone = copy.deepcopy(self)
+        clone = copy.copy(self)
+        # clone = self.__class__()
+        # clone.node = self.node
         clone.cloned = True
         return clone
 
@@ -64,8 +69,12 @@ class BaseWidget(object):
         return len(self.widget_errors) == 0
 
     @property
-    def required(self):
-        return self.field.required or len(self.validators) > 0
+    def children(self):
+        return None
+
+    # @property
+    # def required(self):
+    #     return self.field.required or len(self.validators) > 0
 
     @property
     def label(self):
@@ -78,52 +87,35 @@ class BaseWidget(object):
     def __call__(self, *args, **kwargs):
         return '<{}>'.format(self.name)
 
-    @property
     def marker_start(self):
-        if self._marker_type:
-            return tags.hidden('__start__', '{}:{}'.format(self.field.name or '_ziggurat_form_field_',
+        if self._marker_type is not None:
+            return tags.hidden('__start__', '{}:{}'.format(self.name or '_ziggurat_form_field_',
                                                            self._marker_type), id=None)
         return ''
 
-    @property
     def marker_end(self):
-        if self._marker_type:
-            return tags.hidden('__end__', '{}:{}'.format(self.field.name or '_ziggurat_form_field_',
+        if self._marker_type is not None:
+            return tags.hidden('__end__', '{}:{}'.format(self.name or '_ziggurat_form_field_',
                                                          self._marker_type), id=None)
         return ''
 
     def get_data_from_parent(self):
         p_widget = self.parent_widget
         parent_w_is_mapping = isinstance(p_widget, MappingWidget)
+
         if not p_widget:
             return
+
         data = p_widget.get_data_from_parent()
 
-        if self.position:
+        if self.position is not None:
             if data:
                 return data[self.position]
         elif parent_w_is_mapping:
             if data:
                 return data.get(self.name)
         else:
-            print('wrong', self.name)
-
-
-class PositionalResultWrapper(BaseWidget):
-    def __init__(self, result):
-        self.result = result
-        self.position = 0
-
-    @property
-    def children(self):
-        snodes = []
-
-        for it, sw in enumerate(self.result):
-            sw.widget.position = it
-            for c in sw.children:
-                snodes.append(c.widget)
-        return snodes
-
+            print('something went wrong', self.name)
 
 
 class MappingWidget(BaseWidget):
@@ -131,24 +123,24 @@ class MappingWidget(BaseWidget):
 
     def __init__(self, *args, **kwargs):
         super(MappingWidget, self).__init__(*args, **kwargs)
-        self.subnodes = collections.OrderedDict()
 
     @property
     def children(self):
         snodes = []
-        for item in self.subnodes.values():
-            item.parent_widget = self.parent_widget
-            snodes.append(item.widget)
+        for item in self.node.children:
+            cloned = item.clone()
+            cloned.widget = cloned.widget.clone()
+            cloned.widget.parent_widget = self
+            snodes.append(cloned.widget)
         return snodes
 
     def __call__(self, *args, **kwargs):
         return ''
 
-    def add_as_subnode(self, widget):
-        self.subnodes[widget.name] = widget
-
 
 class FormWidget(MappingWidget):
+    _marker_type = None
+
     name = "__root__"
 
     def __init__(self, *args, **kwargs):
@@ -158,15 +150,7 @@ class FormWidget(MappingWidget):
     def __call__(self, *args, **kwargs):
         return ''
 
-    @property
-    def children(self):
-        snodes = []
-        for item in self.node.children:
-            item.widget.parent_widget = self
-            snodes.append(item.widget)
-        return snodes
-
-    def get_data_from_parent(self):
+    def get_data_from_parent(self, position=None):
         return self.data
 
 
@@ -175,29 +159,20 @@ class PositionalWidget(BaseWidget):
 
     def __init__(self, *args, **kwargs):
         super(PositionalWidget, self).__init__(*args, **kwargs)
-        self.child_instances = None
 
     def __call__(self, *args, **kwargs):
         return ''
 
     @property
     def children(self):
-        if self.child_instances is None:
-            self.child_instances = []
-
-            for i in range(1, 5):
-                wrapped = PositionalResultWrapper([])
-                wrapped.parent_widget = self
-                wrapped.position = i
-                for i, clone in enumerate(self.node.clone().children):
-                    clone.widget.position = i
-                    clone.widget.parent_widget = self
-                    wrapped.result.append(clone)
-                wrapped.node = self.node
-                self.child_instances.append(wrapped)
-
-        print(self.child_instances)
-        return self.child_instances
+        results = []
+        for i in range(0, 5):
+            cloned = self.node.children[0].clone()
+            cloned.widget = cloned.widget.clone()
+            cloned.widget.position = i
+            cloned.widget.parent_widget = self
+            results.append(cloned.widget)
+        return results
 
 
 class TextWidget(BaseWidget):

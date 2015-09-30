@@ -47,7 +47,6 @@ class ZigguratForm(object):
         self.schema_instance.widget = FormWidget()
         self.schema_instance.widget.node = self.schema_instance
         for path in self.paths():
-            parent_node = self.schema_instance
             for i, leaf in enumerate(path):
                 if i == 0:
                     continue
@@ -63,8 +62,6 @@ class ZigguratForm(object):
                 if leaf.widget is None:
                     leaf.widget = widget()
                     leaf.widget.node = leaf
-                parent_node = leaf
-
 
         self.widget = self.schema_instance.widget
         self.widget.data = self.untrusted_data
@@ -77,8 +74,10 @@ class ZigguratForm(object):
             self.untrusted_data = parsed_data
 
         self.untrusted_data = self.schema_instance.serialize(self.untrusted_data)
+        pprint.pprint(self.untrusted_data)
         self.set_nodes()
-
+        # import pdb
+        # pdb.set_trace()
 
         # for field in self.field_names:
         #     if field in struct:
