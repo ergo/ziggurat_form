@@ -1,10 +1,11 @@
 import colander
-import collections
-import pprint
+import logging
 import copy
 import webhelpers2.html.tags as tags
 
 from ziggurat_form.exceptions import FormInvalid
+
+log = logging.getLogger(__name__)
 
 
 class BaseWidget(object):
@@ -105,7 +106,7 @@ class BaseWidget(object):
             if data:
                 return data.get(self.name)
         else:
-            print('something went wrong', self.name)
+            log.error('something went wrong with field', self.name)
 
 
 class MappingWidget(BaseWidget):
@@ -142,6 +143,28 @@ class FormWidget(MappingWidget):
 
     def get_data_from_parent(self, position=None):
         return self.data
+
+
+class TupleWidget(BaseWidget):
+    _marker_type = 'sequence'
+
+    def __init__(self, *args, **kwargs):
+        super(TupleWidget, self).__init__(*args, **kwargs)
+
+    def __call__(self, *args, **kwargs):
+        return ''
+
+    @property
+    def children(self):
+        results = []
+        for i, item in enumerate(self.node.children):
+            cloned = item.clone()
+            cloned.widget = cloned.widget.clone()
+            cloned.widget.position = i
+            cloned.widget.parent_widget = self
+            results.append(cloned.widget)
+
+        return results
 
 
 class PositionalWidget(BaseWidget):

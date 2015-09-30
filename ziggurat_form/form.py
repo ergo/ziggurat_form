@@ -5,7 +5,7 @@ import weakref
 import types
 import pprint
 
-from ziggurat_form.widgets import MappingWidget, PositionalWidget, TextWidget, FormWidget
+from ziggurat_form.widgets import MappingWidget, PositionalWidget, TextWidget, FormWidget, TupleWidget
 
 
 class ZigguratForm(object):
@@ -52,8 +52,11 @@ class ZigguratForm(object):
                     continue
                 is_mapping = isinstance(leaf.typ, colander.Mapping)
                 is_positional = isinstance(leaf.typ, colander.Positional)
+                is_tuple = isinstance(leaf.typ, colander.Tuple)
                 if is_mapping:
                     widget = MappingWidget()
+                elif is_tuple:
+                    widget = TupleWidget()
                 elif is_positional:
                     widget = PositionalWidget()
                 else:
@@ -73,8 +76,6 @@ class ZigguratForm(object):
         else:
             self.untrusted_data = parsed_data
         self.set_nodes()
-        # import pdb
-        # pdb.set_trace()
 
         # for field in self.field_names:
         #     if field in struct:
