@@ -53,14 +53,14 @@ class ZigguratForm(object):
                 is_mapping = isinstance(leaf.typ, colander.Mapping)
                 is_positional = isinstance(leaf.typ, colander.Positional)
                 if is_mapping:
-                    widget = MappingWidget
+                    widget = MappingWidget()
                 elif is_positional:
-                    widget = PositionalWidget
+                    widget = PositionalWidget()
                 else:
-                    widget = TextWidget
+                    widget = TextWidget()
 
-                if leaf.widget is None:
-                    leaf.widget = widget()
+                if leaf.widget is None or leaf.widget.cloned is False:
+                    leaf.widget = widget.clone()
                     leaf.widget.node = leaf
 
         self.widget = self.schema_instance.widget
@@ -72,9 +72,6 @@ class ZigguratForm(object):
             self.untrusted_data = parsed_data['_ziggurat_form_field_']
         else:
             self.untrusted_data = parsed_data
-
-        self.untrusted_data = self.schema_instance.serialize(self.untrusted_data)
-        pprint.pprint(self.untrusted_data)
         self.set_nodes()
         # import pdb
         # pdb.set_trace()

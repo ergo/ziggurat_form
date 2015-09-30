@@ -7,16 +7,6 @@ import webhelpers2.html.tags as tags
 from ziggurat_form.exceptions import FormInvalid
 
 
-class FormField(object):
-    def __init__(self, widget_cls, *args, **kwargs):
-        self.widget_cls = widget_cls
-        self.args = args
-        self.kwargs = kwargs
-
-    def produce(self):
-        return self.widget_cls(*args, **kwargs)
-
-
 class BaseWidget(object):
     _marker_type = None
 
@@ -109,7 +99,7 @@ class BaseWidget(object):
         data = p_widget.get_data_from_parent()
 
         if self.position is not None:
-            if data:
+            if data and len(data) > self.position:
                 return data[self.position]
         elif parent_w_is_mapping:
             if data:
@@ -166,7 +156,8 @@ class PositionalWidget(BaseWidget):
     @property
     def children(self):
         results = []
-        for i in range(0, 5):
+        to_create = len(self.get_data_from_parent() or [])
+        for i in range(0, to_create + 1):
             cloned = self.node.children[0].clone()
             cloned.widget = cloned.widget.clone()
             cloned.widget.position = i
