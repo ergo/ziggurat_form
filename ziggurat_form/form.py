@@ -5,7 +5,7 @@ import weakref
 import types
 import pprint
 
-from ziggurat_form.widgets import MappingWidget, PositionalWidget, TextWidget, FormWidget, BaseWidget, FormField
+from ziggurat_form.widgets import MappingWidget, PositionalWidget, TextWidget, FormWidget
 
 
 class ZigguratForm(object):
