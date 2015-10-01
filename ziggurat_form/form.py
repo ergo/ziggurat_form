@@ -11,16 +11,16 @@ from ziggurat_form.widgets import MappingWidget, PositionalWidget, TextWidget, F
 class ZigguratForm(object):
     def __init__(self, schema_cls, bind_values=None, after_bind_callback=None):
         self.schema_cls = schema_cls
-        self.data = {}
         self.untrusted_data = None
-        self.flattened_data = {}
+        self.deserialized_data = None
         self.bind_values = bind_values
         self.after_bind_callback = after_bind_callback
         self.valid = None
         self.schema_instance = self.schema_cls(after_bind=self.after_bind_callback)
         if self.bind_values:
             self.schema_instance = self.schema_instance.bind(**self.bind_values)
-            # self.set_nodes()
+        self.set_nodes()
+        self.schema_errors = {}
 
     def paths(self):
         """ A generator which returns each path through the node
@@ -45,7 +45,8 @@ class ZigguratForm(object):
 
     def set_nodes(self):
         self.schema_instance.widget = FormWidget()
-        self.schema_instance.widget.node = self.schema_instance
+        self.schema_instance.widget.node = weakref.proxy(self.schema_instance)
+        self.schema_instance.widget.form = weakref.proxy(self)
         for path in self.paths():
             for i, leaf in enumerate(path):
                 if i == 0:
@@ -62,12 +63,12 @@ class ZigguratForm(object):
                 else:
                     widget = TextWidget()
 
-                if leaf.widget is None or leaf.widget.cloned is False:
-                    leaf.widget = widget.clone()
-                    leaf.widget.node = leaf
+                leaf.widget = widget
+                leaf.widget.node = leaf
+                leaf.widget.form = self
 
         self.widget = self.schema_instance.widget
-        self.widget.data = self.untrusted_data
+        self.widget.root_data = self.untrusted_data
 
     def set_data(self, struct=None, obj=None, **kwargs):
         parsed_data = peppercorn.parse(struct.items())
@@ -91,20 +92,18 @@ class ZigguratForm(object):
         # colander validation
         self.valid = True
         try:
-            self.schema_instance.deserialize(self.untrusted_data)
+            self.deserialized_data = self.schema_instance.deserialize(
+                self.untrusted_data)
         except colander.Invalid as exc:
             self.valid = False
-            for path in exc.paths():
-                leaf = path[-1]
-                if leaf.node.widget:
-                    leaf.node.widget.schema_errors = list(leaf.asdict().values())
+            self.schema_errors = exc.asdict()
 
-        # custom widget validators
-        for path in self.paths():
-            leaf = path[-1]
-            if leaf.widget and leaf.widget.validators:
-                if not leaf.widget.validate():
-                    self.valid = False
+        # # custom widget validators
+        # for path in self.paths():
+        #     leaf = path[-1]
+        #     if leaf.widget and leaf.widget.validators:
+        #         if not leaf.widget.validate():
+        #             self.valid = False
 
         return self.valid
 

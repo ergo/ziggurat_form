@@ -8,20 +8,28 @@ from ziggurat_form.exceptions import FormInvalid
 log = logging.getLogger(__name__)
 
 
+def while_parent(widget, path):
+    if widget.position is not None:
+        path.append(str(widget.position))
+    else:
+        path.append(widget.name)
+    if widget.parent_widget and widget.parent_widget.name != '__root__':
+        while_parent(widget.parent_widget, path)
+    return path
+
+
 class BaseWidget(object):
     _marker_type = None
 
-    def __init__(self, custom_label=None, validators=None, data=None, *args, **kwargs):
+    def __init__(self, custom_label=None, validators=None, *args, **kwargs):
         self.cloned = False
-        self.custom_label = None
+        self.custom_label = custom_label
         self.args = args
         self.kwargs = kwargs
         self.form = None
         self.validators = validators or []
         self.widget_errors = []
-        self.schema_errors = []
         self.position = None
-        self.data = data
         self.node = None
         self.parent_widget = None
         self.required = False
@@ -41,7 +49,8 @@ class BaseWidget(object):
     def clone(self):
         clone = copy.copy(self)
         # clone = self.__class__()
-        # clone.node = self.node
+        clone.node = self.node
+        clone.form = self.form
         clone.cloned = True
         return clone
 
@@ -72,32 +81,43 @@ class BaseWidget(object):
         return self.custom_label or self.node.name.replace('_', ' ').capitalize()
 
     @property
+    def schema_errors(self):
+        error_path = '.'.join(reversed(while_parent(self, [])))
+        errors = self.form.schema_errors.get(error_path)
+        if errors:
+            return [errors]
+        return []
+
+    @property
     def errors(self):
         return self.widget_errors + self.schema_errors
 
     def __call__(self, *args, **kwargs):
         return '<{}>'.format(self.name)
 
+    @property
     def marker_start(self):
         if self._marker_type is not None:
             return tags.hidden('__start__', '{}:{}'.format(self.name or '_ziggurat_form_field_',
                                                            self._marker_type), id=None)
         return ''
 
+    @property
     def marker_end(self):
         if self._marker_type is not None:
             return tags.hidden('__end__', '{}:{}'.format(self.name or '_ziggurat_form_field_',
                                                          self._marker_type), id=None)
         return ''
 
-    def get_data_from_parent(self):
+    @property
+    def data(self):
         p_widget = self.parent_widget
         parent_w_is_mapping = isinstance(p_widget, MappingWidget)
 
         if not p_widget:
             return
 
-        data = p_widget.get_data_from_parent()
+        data = p_widget.data
 
         if self.position is not None:
             if data and len(data) > self.position:
@@ -136,13 +156,14 @@ class FormWidget(MappingWidget):
 
     def __init__(self, *args, **kwargs):
         super(FormWidget, self).__init__(*args, **kwargs)
-        self.data = {}
+        self.root_data = {}
 
     def __call__(self, *args, **kwargs):
         return ''
 
-    def get_data_from_parent(self, position=None):
-        return self.data
+    @property
+    def data(self):
+        return self.root_data
 
 
 class TupleWidget(BaseWidget):
@@ -179,8 +200,8 @@ class PositionalWidget(BaseWidget):
     @property
     def children(self):
         results = []
-        to_create = len(self.get_data_from_parent() or [])
-        for i in range(0, to_create + 1):
+        to_create = len(self.data or [])
+        for i in range(0, to_create):
             cloned = self.node.children[0].clone()
             cloned.widget = cloned.widget.clone()
             cloned.widget.position = i
@@ -191,7 +212,7 @@ class PositionalWidget(BaseWidget):
 
 class TextWidget(BaseWidget):
     def __call__(self, *args, **kwargs):
-        val = self.get_data_from_parent()
+        val = self.data
         if val is colander.null:
             val = ''
         return tags.text(self.name, val, *args, **kwargs)
