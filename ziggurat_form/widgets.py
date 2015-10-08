@@ -28,7 +28,6 @@ class BaseWidget(object):
         self.kwargs = kwargs
         self.form = None
         self.validators = validators or []
-        self.widget_errors = []
         self.position = None
         self.node = None
         self.parent_widget = None
@@ -59,14 +58,15 @@ class BaseWidget(object):
         Return all messages returned by validators, if validator returns True
         then it is considered to pass
         """
-        self.widget_errors = []
+        errors = []
         for validator in self.validators:
             try:
-                validator(self.field, self.form)
+                validator(self)
             except FormInvalid as exc:
-                self.widget_errors.append(exc.message)
+                errors.append(exc.message)
 
-        return len(self.widget_errors) == 0
+        self.form.widget_errors[self.error_path] = errors
+        return len(errors) == 0
 
     @property
     def children(self):
@@ -81,12 +81,20 @@ class BaseWidget(object):
         return self.custom_label or self.node.name.replace('_', ' ').capitalize()
 
     @property
+    def error_path(self):
+        return '.'.join(reversed(while_parent(self, [])))
+
+    @property
     def schema_errors(self):
-        error_path = '.'.join(reversed(while_parent(self, [])))
-        errors = self.form.schema_errors.get(error_path)
+        errors = self.form.schema_errors.get(self.error_path)
         if errors:
             return [errors]
         return []
+
+    @property
+    def widget_errors(self):
+        errors = self.form.widget_errors.get(self.error_path)
+        return errors
 
     @property
     def errors(self):

@@ -21,6 +21,7 @@ class ZigguratForm(object):
             self.schema_instance = self.schema_instance.bind(**self.bind_values)
         self.set_nodes()
         self.schema_errors = {}
+        self.widget_errors = {}
 
     def paths(self):
         """ A generator which returns each path through the node
@@ -54,7 +55,9 @@ class ZigguratForm(object):
                 is_mapping = isinstance(leaf.typ, colander.Mapping)
                 is_positional = isinstance(leaf.typ, colander.Positional)
                 is_tuple = isinstance(leaf.typ, colander.Tuple)
-                if is_mapping:
+                if leaf.widget:
+                    widget = leaf.widget.clone()
+                elif is_mapping:
                     widget = MappingWidget()
                 elif is_tuple:
                     widget = TupleWidget()
@@ -92,18 +95,26 @@ class ZigguratForm(object):
         # colander validation
         self.valid = True
         try:
-            self.deserialized_data = self.schema_instance.deserialize(
-                self.untrusted_data)
+            self.deserialized_data = self.schema_instance.deserialize(self.untrusted_data)
         except colander.Invalid as exc:
             self.valid = False
             self.schema_errors = exc.asdict()
 
-        # # custom widget validators
-        # for path in self.paths():
-        #     leaf = path[-1]
-        #     if leaf.widget and leaf.widget.validators:
-        #         if not leaf.widget.validate():
-        #             self.valid = False
+        def validate_widget(widget, form):
+            print('validating', widget)
+            is_valid = widget.validate()
+            if is_valid is False:
+                print('INVALID')
+                form.valid = False
+            if widget.children:
+                for child_widget in widget.children:
+                    is_valid = validate_widget(child_widget, form)
+                    if is_valid is False:
+                        print('INVALID')
+                        form.valid = False
+            return is_valid
+
+        validate_widget(self.widget, self)
 
         return self.valid
 
