@@ -18,6 +18,12 @@ def while_parent(widget, path):
     return path
 
 
+class DummyNode(object):
+    def __init__(self, name, widget=None):
+        self.name = name
+        self.widget = widget
+
+
 class BaseWidget(object):
     _marker_type = None
 
@@ -52,6 +58,9 @@ class BaseWidget(object):
         clone.form = self.form
         clone.cloned = True
         return clone
+
+    def coerce(self):
+        print('coerce run', self.coerced_data)
 
     def validate(self):
         """
@@ -94,7 +103,7 @@ class BaseWidget(object):
     @property
     def widget_errors(self):
         errors = self.form.widget_errors.get(self.error_path)
-        return errors
+        return errors or []
 
     @property
     def errors(self):
@@ -120,7 +129,7 @@ class BaseWidget(object):
     @property
     def data(self):
         p_widget = self.parent_widget
-        parent_w_is_mapping = isinstance(p_widget, MappingWidget)
+        parent_is_mapping = isinstance(p_widget, MappingWidget)
 
         if not p_widget:
             return
@@ -130,11 +139,30 @@ class BaseWidget(object):
         if self.position is not None:
             if data and len(data) > self.position:
                 return data[self.position]
-        elif parent_w_is_mapping:
+        elif parent_is_mapping:
             if data:
                 return data.get(self.name)
         else:
-            log.error('something went wrong with field', self.name)
+            log.error('something went wrong with field {}'.format(self.name))
+
+    @property
+    def coerced_data(self):
+        p_widget = self.parent_widget
+        parent_is_mapping = isinstance(p_widget, MappingWidget)
+
+        if not p_widget:
+            return
+
+        data = p_widget.coerced_data
+
+        if self.position is not None:
+            if data and len(data) > self.position:
+                return data[self.position]
+        elif parent_is_mapping:
+            if data and hasattr(data, 'get'):
+                return data.get(self.name)
+        else:
+            log.error('something went wrong with field {}'.format(self.name))
 
 
 class MappingWidget(BaseWidget):
@@ -164,14 +192,18 @@ class FormWidget(MappingWidget):
 
     def __init__(self, *args, **kwargs):
         super(FormWidget, self).__init__(*args, **kwargs)
-        self.root_data = {}
+        self.non_coerced_data = {}
 
     def __call__(self, *args, **kwargs):
         return ''
 
     @property
     def data(self):
-        return self.root_data
+        return self.non_coerced_data
+
+    @property
+    def coerced_data(self):
+        return self.coerced_data_holder
 
 
 class TupleWidget(BaseWidget):
@@ -208,7 +240,7 @@ class PositionalWidget(BaseWidget):
     @property
     def children(self):
         results = []
-        to_create = len(self.data or [])
+        to_create = len(self.data or [1])
         for i in range(0, to_create):
             cloned = self.node.children[0].clone()
             cloned.widget = cloned.widget.clone()
@@ -221,6 +253,53 @@ class PositionalWidget(BaseWidget):
 class TextWidget(BaseWidget):
     def __call__(self, *args, **kwargs):
         val = self.data
+        print('text widget', self.data)
         if val is colander.null:
             val = ''
         return tags.text(self.name, val, *args, **kwargs)
+
+
+class PasswordWidget(BaseWidget):
+    def __call__(self, *args, **kwargs):
+        val = self.data
+        if val is colander.null:
+            val = ''
+        return tags.password(self.name, val, *args, **kwargs)
+
+
+def confirm_validator(field):
+    confirm_data = field.data
+    original_data = field.parent_widget.data.get(field.name[:-8])
+    if confirm_data != original_data:
+        raise FormInvalid("Confirm field does not match")
+    return True
+
+
+class ConfirmWidget(MappingWidget):
+    _marker_type = 'mapping'
+
+    def __init__(self, widget_to_confirm, *args, **kwargs):
+        super(ConfirmWidget, self).__init__(*args, **kwargs)
+        self.widget_to_confirm = widget_to_confirm
+        self.org_node = None
+
+    def coerce(self):
+        to_replace = self.coerced_data.get(self.name)
+        self.parent_widget.coerced_data[self.name] = to_replace
+        log.info('XXXX {} {}'.format(self.name, self.coerced_data))
+
+    @property
+    def children(self):
+        self.widget_to_confirm.node = self.node
+        self.widget_to_confirm.form = self.form
+        self.widget_to_confirm.parent_widget = self
+
+        confirm_node = self.widget_to_confirm.clone()
+        confirm_node.node = DummyNode(self.node.name + '_confirm')
+        confirm_node.validators = [confirm_validator]
+
+        snodes = [
+            self.widget_to_confirm,
+            confirm_node
+        ]
+        return snodes

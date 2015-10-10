@@ -11,7 +11,9 @@ from ziggurat_form.widgets import MappingWidget, PositionalWidget, TextWidget, F
 class ZigguratForm(object):
     def __init__(self, schema_cls, bind_values=None, after_bind_callback=None):
         self.schema_cls = schema_cls
-        self.untrusted_data = None
+        self.widget = None
+        self.non_coerced_data = None
+        self.coerced_data_holder = None
         self.deserialized_data = None
         self.bind_values = bind_values
         self.after_bind_callback = after_bind_callback
@@ -45,9 +47,14 @@ class ZigguratForm(object):
         return traverse(self.schema_instance, [])
 
     def set_nodes(self):
+        """ Creates links between widgets and schema nodes """
         self.schema_instance.widget = FormWidget()
         self.schema_instance.widget.node = weakref.proxy(self.schema_instance)
         self.schema_instance.widget.form = weakref.proxy(self)
+        self.schema_instance.widget.non_coerced_data = self.non_coerced_data
+        self.schema_instance.widget.coerced_data_holder = self.coerced_data_holder
+        self.widget = self.schema_instance.widget
+
         for path in self.paths():
             for i, leaf in enumerate(path):
                 if i == 0:
@@ -70,16 +77,23 @@ class ZigguratForm(object):
                 leaf.widget.node = leaf
                 leaf.widget.form = self
 
-        self.widget = self.schema_instance.widget
-        self.widget.root_data = self.untrusted_data
-
     def set_data(self, struct=None, obj=None, **kwargs):
+        """ Sets the data for form """
         parsed_data = peppercorn.parse(struct.items())
         if '_ziggurat_form_field_' in parsed_data:
-            self.untrusted_data = parsed_data['_ziggurat_form_field_']
+            self.non_coerced_data = parsed_data['_ziggurat_form_field_']
         else:
-            self.untrusted_data = parsed_data
+            self.non_coerced_data = parsed_data
+        self.coerced_data_holder = copy.deepcopy(self.non_coerced_data)
         self.set_nodes()
+
+        def coerce_recursive(widget, form):
+            widget.coerce()
+            if widget.children:
+                for child_widget in widget.children:
+                    coerce_recursive(child_widget, form)
+
+        coerce_recursive(self.widget, self)
 
         # for field in self.field_names:
         #     if field in struct:
@@ -89,16 +103,11 @@ class ZigguratForm(object):
         #     elif field in kwargs:
         #         tmp_struct[field] = copy.deepcopy(kwargs[field])
         # pprint.pprint(tmp_struct.items())
-        # self.untrusted_data = peppercorn.parse(tmp_struct.items())
+        # self.non_coerced_data = peppercorn.parse(tmp_struct.items())
 
     def validate(self):
         # colander validation
         self.valid = True
-        try:
-            self.deserialized_data = self.schema_instance.deserialize(self.untrusted_data)
-        except colander.Invalid as exc:
-            self.valid = False
-            self.schema_errors = exc.asdict()
 
         def validate_widget(widget, form):
             print('validating', widget)
@@ -115,6 +124,12 @@ class ZigguratForm(object):
             return is_valid
 
         validate_widget(self.widget, self)
+
+        try:
+            self.deserialized_data = self.schema_instance.deserialize(self.coerced_data_holder)
+        except colander.Invalid as exc:
+            self.valid = False
+            self.schema_errors = exc.asdict()
 
         return self.valid
 
