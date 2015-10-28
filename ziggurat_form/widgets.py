@@ -41,8 +41,6 @@ class BaseWidget(object):
 
     @property
     def name(self):
-        if not self.node:
-            return ''
         return self.node.name
 
     def __str__(self):
@@ -148,10 +146,8 @@ class BaseWidget(object):
             if data and len(data) > self.position:
                 return data[self.position]
         elif parent_is_mapping:
-            if hasattr(data, 'get'):
+            if data:
                 return data.get(self.name)
-            else:  # XXX: perhaps, you may need to find another solution
-                return data
         else:
             log.error('something went wrong with field {}'.format(self.name))
 
@@ -295,7 +291,6 @@ class CheckboxWidget(BaseWidget):
 
 
 class HiddenWidget(BaseWidget):
-    # TODO: hide label of field too
     def __call__(self, *args, **kwargs):
         val = self.data
         if val is colander.null:
@@ -347,10 +342,7 @@ class ConfirmWidget(MappingWidget):
         self.org_node = None
 
     def coerce(self):
-        if hasattr(self.coerced_data, 'get'):
-            to_replace = self.coerced_data.get(self.name)
-        else:  # XXX: perhaps, you may need to find another solution
-            to_replace = self.coerced_data
+        to_replace = self.coerced_data.get(self.name)
         self.parent_widget.coerced_data[self.name] = to_replace
         log.info('XXXX {} {}'.format(self.name, self.coerced_data))
 
