@@ -267,6 +267,14 @@ class PasswordWidget(BaseWidget):
         return tags.password(self.name, val, *args, **kwargs)
 
 
+class SelectWidget(BaseWidget):
+    def __call__(self, *args, **kwargs):
+        val = self.data
+        if val is colander.null:
+            val = ''
+        return tags.select(self.name, val, *args, **kwargs)
+
+
 def confirm_validator(field):
     confirm_data = field.data
     original_data = field.parent_widget.data.get(field.name[:-8])
