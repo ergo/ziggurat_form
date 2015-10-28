@@ -41,6 +41,8 @@ class BaseWidget(object):
 
     @property
     def name(self):
+        if not self.node:
+            return ''
         return self.node.name
 
     def __str__(self):
@@ -87,7 +89,8 @@ class BaseWidget(object):
 
     @property
     def label(self):
-        return self.custom_label or self.node.name.replace('_', ' ').capitalize()
+        return self.custom_label\
+            or self.node.name.replace('_', ' ').capitalize()
 
     @property
     def error_path(self):
@@ -115,15 +118,20 @@ class BaseWidget(object):
     @property
     def marker_start(self):
         if self._marker_type is not None:
-            return tags.hidden('__start__', '{}:{}'.format(self.name or '_ziggurat_form_field_',
-                                                           self._marker_type), id=None)
+            return tags.hidden(
+                '__start__',
+                '{}:{}'.format(self.name or '_ziggurat_form_field_',
+                               self._marker_type),
+                id=None)
         return ''
 
     @property
     def marker_end(self):
         if self._marker_type is not None:
-            return tags.hidden('__end__', '{}:{}'.format(self.name or '_ziggurat_form_field_',
-                                                         self._marker_type), id=None)
+            return tags.hidden(
+                '__end__', '{}:{}'.format(self.name or '_ziggurat_form_field_',
+                                          self._marker_type),
+                id=None)
         return ''
 
     @property
@@ -140,8 +148,10 @@ class BaseWidget(object):
             if data and len(data) > self.position:
                 return data[self.position]
         elif parent_is_mapping:
-            if data:
+            if hasattr(data, 'get'):
                 return data.get(self.name)
+            else:  # XXX: perhaps, you may need to find another solution
+                return data
         else:
             log.error('something went wrong with field {}'.format(self.name))
 
@@ -274,6 +284,25 @@ class PasswordWidget(BaseWidget):
         return tags.password(self.name, val, *args, **kwargs)
 
 
+class CheckboxWidget(BaseWidget):
+    def __call__(self, *args, **kwargs):
+        val = self.data
+        checked = True
+        if val is colander.null or not val:
+            checked = False
+        return tags.hidden(self.name, '', *args, **kwargs)\
+            + tags.checkbox(self.name, u'1', checked, *args, **kwargs)
+
+
+class HiddenWidget(BaseWidget):
+    # TODO: hide label of field too
+    def __call__(self, *args, **kwargs):
+        val = self.data
+        if val is colander.null:
+            val = ''
+        return tags.hidden(self.name, val, *args, **kwargs)
+
+
 class SelectWidget(BaseWidget):
 
     def convert(self, values):
@@ -318,7 +347,10 @@ class ConfirmWidget(MappingWidget):
         self.org_node = None
 
     def coerce(self):
-        to_replace = self.coerced_data.get(self.name)
+        if hasattr(self.coerced_data, 'get'):
+            to_replace = self.coerced_data.get(self.name)
+        else:  # XXX: perhaps, you may need to find another solution
+            to_replace = self.coerced_data
         self.parent_widget.coerced_data[self.name] = to_replace
         log.info('XXXX {} {}'.format(self.name, self.coerced_data))
 

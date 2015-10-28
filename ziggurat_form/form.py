@@ -25,8 +25,7 @@ class ZigguratForm(object):
         if type(self.schema_cls) is colander._SchemaMeta:
             self.schema_instance = self.schema_cls(
                 after_bind=self.after_bind_callback)
-        else:
-            # if it's colander.SchemaNode for example
+        else:  # if it's colander.SchemaNode for example
             self.schema_instance = self.schema_cls
             self.schema_instance.after_bind = self.after_bind_callback
         if self.bind_values:
