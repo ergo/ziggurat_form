@@ -1,8 +1,8 @@
-import colander
-import logging
 import copy
-import webhelpers2.html.tags as tags
+import logging
 
+import colander
+import webhelpers2.html.tags as tags
 from ziggurat_form.exceptions import FormInvalid
 
 log = logging.getLogger(__name__)
@@ -268,10 +268,29 @@ class PasswordWidget(BaseWidget):
 
 
 class SelectWidget(BaseWidget):
-    def __call__(self, *args, **kwargs):
+
+    def convert(self, values):
+        return [tags.Option(*reversed(option))
+                for option in values]
+
+    def get_options(self, values):
+        options = []
+        if hasattr(values, 'items'):
+            for group, option in values.items():
+                options.append(
+                    tags.OptGroup(
+                        group, self.convert(option)
+                    )
+                )
+        else:
+            options = self.convert(values)
+        return options
+
+    def __call__(self, values, *args, **kwargs):
         val = self.data
         if val is colander.null:
             val = ''
+        kwargs['options'] = self.get_options(values)
         return tags.select(self.name, val, *args, **kwargs)
 
 
