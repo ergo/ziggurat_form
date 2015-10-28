@@ -1,11 +1,15 @@
 import copy
+import weakref
+
 import colander
 import peppercorn
-import weakref
-import types
-import pprint
-
-from ziggurat_form.widgets import MappingWidget, PositionalWidget, TextWidget, FormWidget, TupleWidget
+from ziggurat_form.widgets import (
+    FormWidget,
+    TextWidget,
+    TupleWidget,
+    MappingWidget,
+    PositionalWidget
+)
 
 
 class ZigguratForm(object):
@@ -18,9 +22,15 @@ class ZigguratForm(object):
         self.bind_values = bind_values
         self.after_bind_callback = after_bind_callback
         self.valid = None
-        self.schema_instance = self.schema_cls(after_bind=self.after_bind_callback)
+        if type(self.schema_cls) is colander._SchemaMeta:
+            self.schema_instance = self.schema_cls(
+                after_bind=self.after_bind_callback)
+        else:
+            # if it's colander.SchemaNode for example
+            self.schema_instance = self.schema_cls
         if self.bind_values:
-            self.schema_instance = self.schema_instance.bind(**self.bind_values)
+            self.schema_instance = self.schema_instance.bind(
+                **self.bind_values)
         self.set_nodes()
         self.schema_errors = {}
         self.widget_errors = {}

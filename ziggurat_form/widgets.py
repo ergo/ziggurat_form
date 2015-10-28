@@ -253,10 +253,17 @@ class PositionalWidget(BaseWidget):
 class TextWidget(BaseWidget):
     def __call__(self, *args, **kwargs):
         val = self.data
-        print('text widget', self.data)
         if val is colander.null:
             val = ''
         return tags.text(self.name, val, *args, **kwargs)
+
+
+class TextAreaWidget(BaseWidget):
+    def __call__(self, *args, **kwargs):
+        val = self.data
+        if val is colander.null:
+            val = ''
+        return tags.textarea(self.name, val, *args, **kwargs)
 
 
 class PasswordWidget(BaseWidget):
