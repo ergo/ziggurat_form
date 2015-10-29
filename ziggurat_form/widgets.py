@@ -27,7 +27,8 @@ class DummyNode(object):
 class BaseWidget(object):
     _marker_type = None
 
-    def __init__(self, custom_label=None, validators=None, *args, **kwargs):
+    def __init__(self, custom_label=None, validators=None,
+                 blank_widget_data=False, *args, **kwargs):
         self.cloned = False
         self.custom_label = custom_label
         self.args = args
@@ -38,6 +39,7 @@ class BaseWidget(object):
         self.node = None
         self.parent_widget = None
         self.required = False
+        self.blank_widget_data = blank_widget_data
 
     @property
     def name(self):
@@ -60,7 +62,7 @@ class BaseWidget(object):
         return clone
 
     def coerce(self):
-        print('coerce run', self.coerced_data)
+        pass
 
     def validate(self):
         """
@@ -87,8 +89,8 @@ class BaseWidget(object):
 
     @property
     def label(self):
-        return self.custom_label\
-            or self.node.name.replace('_', ' ').capitalize()
+        return self.custom_label \
+               or self.node.name.replace('_', ' ').capitalize()
 
     @property
     def error_path(self):
@@ -146,8 +148,9 @@ class BaseWidget(object):
             if data and len(data) > self.position:
                 return data[self.position]
         elif parent_is_mapping:
-            if data:
+            if data and hasattr(data, 'get'):
                 return data.get(self.name)
+            return data
         else:
             log.error('something went wrong with field {}'.format(self.name))
 
@@ -259,7 +262,7 @@ class PositionalWidget(BaseWidget):
 class TextWidget(BaseWidget):
     def __call__(self, *args, **kwargs):
         val = self.data
-        if val is colander.null:
+        if val is colander.null or self.blank_widget_data:
             val = ''
         return tags.text(self.name, val, *args, **kwargs)
 
@@ -267,7 +270,7 @@ class TextWidget(BaseWidget):
 class TextAreaWidget(BaseWidget):
     def __call__(self, *args, **kwargs):
         val = self.data
-        if val is colander.null:
+        if val is colander.null or self.blank_widget_data:
             val = ''
         return tags.textarea(self.name, val, *args, **kwargs)
 
@@ -275,7 +278,7 @@ class TextAreaWidget(BaseWidget):
 class PasswordWidget(BaseWidget):
     def __call__(self, *args, **kwargs):
         val = self.data
-        if val is colander.null:
+        if val is colander.null or self.blank_widget_data:
             val = ''
         return tags.password(self.name, val, *args, **kwargs)
 
@@ -284,16 +287,16 @@ class CheckboxWidget(BaseWidget):
     def __call__(self, *args, **kwargs):
         val = self.data
         checked = True
-        if val is colander.null or not val:
+        if val is colander.null or not val or self.blank_widget_data:
             checked = False
-        return tags.hidden(self.name, '', *args, **kwargs)\
-            + tags.checkbox(self.name, u'1', checked, *args, **kwargs)
+        return tags.hidden(self.name, '', *args, **kwargs) \
+               + tags.checkbox(self.name, u'1', checked, *args, **kwargs)
 
 
 class HiddenWidget(BaseWidget):
     def __call__(self, *args, **kwargs):
         val = self.data
-        if val is colander.null:
+        if val is colander.null or self.blank_widget_data:
             val = ''
         return tags.hidden(self.name, val, *args, **kwargs)
 
@@ -319,7 +322,7 @@ class SelectWidget(BaseWidget):
 
     def __call__(self, values, *args, **kwargs):
         val = self.data
-        if val is colander.null:
+        if val is colander.null or self.blank_widget_data:
             val = ''
         kwargs['options'] = self.get_options(values)
         return tags.select(self.name, val, *args, **kwargs)
@@ -336,15 +339,18 @@ def confirm_validator(field):
 class ConfirmWidget(MappingWidget):
     _marker_type = 'mapping'
 
-    def __init__(self, widget_to_confirm, *args, **kwargs):
+    def __init__(self, widget_to_confirm, blank_confirm_widget=True, *args, **kwargs):
         super(ConfirmWidget, self).__init__(*args, **kwargs)
         self.widget_to_confirm = widget_to_confirm
         self.org_node = None
+        self.blank_confirm_widget = blank_confirm_widget
 
     def coerce(self):
-        to_replace = self.coerced_data.get(self.name)
+        if hasattr(self.coerced_data, 'get'):
+            to_replace = self.coerced_data.get(self.name)
+        else:
+            to_replace = self.coerced_data
         self.parent_widget.coerced_data[self.name] = to_replace
-        log.info('XXXX {} {}'.format(self.name, self.coerced_data))
 
     @property
     def children(self):
@@ -353,6 +359,7 @@ class ConfirmWidget(MappingWidget):
         self.widget_to_confirm.parent_widget = self
 
         confirm_node = self.widget_to_confirm.clone()
+        confirm_node.blank_widget_data = self.blank_confirm_widget
         confirm_node.node = DummyNode(self.node.name + '_confirm')
         confirm_node.validators = [confirm_validator]
 
