@@ -13,7 +13,7 @@ def while_parent(widget, path):
         path.append(str(widget.position))
     else:
         path.append(widget.name)
-    if widget.parent_widget and widget.parent_widget.name != '__root__':
+    if widget.parent_widget and not isinstance(widget.parent_widget, FormWidget):
         while_parent(widget.parent_widget, path)
     return path
 
@@ -43,7 +43,7 @@ class BaseWidget(object):
 
     @property
     def name(self):
-        return self.node.name
+        return self.node.name or ''
 
     def __str__(self):
         return '<{} {} of {}: p: {}>'.format(
@@ -94,7 +94,10 @@ class BaseWidget(object):
 
     @property
     def error_path(self):
-        return '.'.join(reversed(while_parent(self, [])))
+        path = '.'.join(reversed(while_parent(self, [])))
+        if path.startswith('.'):
+            return path[1:]
+        return path
 
     @property
     def schema_errors(self):
@@ -120,8 +123,7 @@ class BaseWidget(object):
         if self._marker_type is not None:
             return tags.hidden(
                 '__start__',
-                '{}:{}'.format(self.name or '_ziggurat_form_field_',
-                               self._marker_type),
+                '{}:{}'.format(self.name, self._marker_type),
                 id=None)
         return ''
 
@@ -129,8 +131,7 @@ class BaseWidget(object):
     def marker_end(self):
         if self._marker_type is not None:
             return tags.hidden(
-                '__end__', '{}:{}'.format(self.name or '_ziggurat_form_field_',
-                                          self._marker_type),
+                '__end__', '{}:{}'.format(self.name, self._marker_type),
                 id=None)
         return ''
 
