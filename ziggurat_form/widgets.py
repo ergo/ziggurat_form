@@ -357,7 +357,9 @@ class ConfirmWidget(MappingWidget):
             to_replace = self.coerced_data.get(self.name)
         else:
             to_replace = self.coerced_data
-        self.parent_widget.coerced_data[self.name] = to_replace
+
+        if hasattr(self.coerced_data, 'get'):
+            self.parent_widget.coerced_data[self.name] = to_replace
 
     @property
     def children(self):
