@@ -150,7 +150,8 @@ class BaseWidget(object):
         elif parent_is_mapping:
             if data and hasattr(data, 'get'):
                 return data.get(self.name)
-            return data
+            elif data:
+                return data
         else:
             log.error('something went wrong with field {}'.format(self.name))
 
