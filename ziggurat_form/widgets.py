@@ -295,6 +295,11 @@ class CheckboxWidget(BaseWidget):
 
 
 class HiddenWidget(BaseWidget):
+
+    @property
+    def label(self):
+        return ''
+
     def __call__(self, *args, **kwargs):
         val = self.data
         if val is colander.null or self.blank_widget_data:
