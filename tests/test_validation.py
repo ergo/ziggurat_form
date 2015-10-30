@@ -32,7 +32,7 @@ class TestValidation(object):
         # widget must have error
         assert any(form.widget_errors.values()) is True
 
-    def test_deep_droup_schema(self):
+    def test_deep_group_schema(self):
         data = {'':
                 {'':
                  {'foo100':
@@ -50,7 +50,7 @@ class TestValidation(object):
         form.set_data(data)
         self.validate(form)
 
-    def test_bad_deep_droup_schema(self):
+    def test_bad_deep_group_schema(self):
         data = {'':
                 {'':
                  {'foo100':
