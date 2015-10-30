@@ -1,0 +1,22 @@
+sudo: false
+language: python
+
+notifications:
+    on_success: change
+    on_failure: always
+
+python:
+  - "2.7"
+  - "3.3"
+  - "3.4"
+  - "3.5"
+  - "pypy"
+  - "pypy3"
+
+script:
+  - python setup.py test
+
+after_success:
+  - pip install coveralls
+  - pip install coveralls
+  - coveralls
