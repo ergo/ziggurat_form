@@ -89,8 +89,8 @@ class BaseWidget(object):
 
     @property
     def label(self):
-        return self.custom_label \
-               or self.node.name.replace('_', ' ').capitalize()
+        cap_name = self.node.name.replace('_', ' ').capitalize()
+        return self.custom_label or cap_name
 
     @property
     def error_path(self):
@@ -154,8 +154,6 @@ class BaseWidget(object):
         else:
             log.error('something went wrong with field {}'.format(self.name))
 
-        return colander.null
-
     @property
     def coerced_data(self):
         p_widget = self.parent_widget
@@ -175,14 +173,13 @@ class BaseWidget(object):
         else:
             log.error('something went wrong with field {}'.format(self.name))
 
-        return colander.null
-
     @property
     def value(self):
         val = self.data
         if val is colander.null or self.blank_widget_data:
             val = ''
         return val
+
 
 class MappingWidget(BaseWidget):
     _marker_type = 'mapping'
@@ -308,6 +305,7 @@ class HiddenWidget(BaseWidget):
 
 
 class SelectWidget(BaseWidget):
+
     def convert(self, values):
         return [tags.Option(*reversed(option))
                 for option in values]
