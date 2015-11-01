@@ -57,3 +57,34 @@ schema3.add(schema4)
 schema4.add(GroupSchema())
 schema.add(schema1)
 group_schema.add(schema)
+
+
+class _FieldDefaultsSchema(colander.Schema):
+    """
+    http://deformdemo.repoze.org/fielddefaults/
+    """
+    artist = colander.SchemaNode(
+        colander.String(),
+        default='Grandaddy',
+        description='Song name'
+    )
+    album = colander.SchemaNode(
+        colander.String(),
+        default='Just Like the Fambly Cat'
+    )
+    song = colander.SchemaNode(
+        colander.String(),
+        description='Song name'
+    )
+    title = colander.SchemaNode(
+        colander.String(),
+        missing="missing title"
+    )
+
+
+class FieldDefaultsSchema(colander.Schema):
+    title = colander.SchemaNode(
+        colander.String(),
+        missing="missing title"
+    )
+    music = _FieldDefaultsSchema()
