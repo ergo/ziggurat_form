@@ -85,7 +85,7 @@ class TestValidation(object):
         }
         form = ZigguratForm(FieldDefaultsSchema)
         form.set_data(data)
-        assert form.coerced_data_holder == {
+        assert form.non_validated_data == {
             'title': 'missing title',
             'music': {
                 'title': 'missing title',

@@ -16,9 +16,9 @@ class ZigguratForm(object):
     def __init__(self, schema_cls, bind_values=None, after_bind_callback=None):
         self.schema_cls = schema_cls
         self.widget = None
-        self.non_coerced_data = None
-        self.coerced_data_holder = None
-        self.deserialized_data = None
+        self._non_coerced_data = None
+        self._coerced_data_holder = None
+        self.validated_data = None
         self.bind_values = bind_values
         self.after_bind_callback = after_bind_callback
         self.valid = None
@@ -61,8 +61,8 @@ class ZigguratForm(object):
         self.schema_instance.widget = FormWidget()
         self.schema_instance.widget.node = weakref.proxy(self.schema_instance)
         self.schema_instance.widget.form = weakref.proxy(self)
-        self.schema_instance.widget.non_coerced_data = self.non_coerced_data
-        self.schema_instance.widget.coerced_data_holder = self.coerced_data_holder
+        self.schema_instance.widget.non_coerced_data = self._non_coerced_data
+        self.schema_instance.widget.coerced_data_holder = self._coerced_data_holder
         self.widget = self.schema_instance.widget
 
         for path in self.paths():
@@ -91,10 +91,10 @@ class ZigguratForm(object):
         """ Sets the data for form """
         parsed_data = peppercorn.parse(struct.items())
         if '_ziggurat_form_field_' in parsed_data:
-            self.non_coerced_data = parsed_data['_ziggurat_form_field_']
+            self._non_coerced_data = parsed_data['_ziggurat_form_field_']
         else:
-            self.non_coerced_data = parsed_data
-        self.coerced_data_holder = copy.deepcopy(self.non_coerced_data)
+            self._non_coerced_data = parsed_data
+        self._coerced_data_holder = copy.deepcopy(self._non_coerced_data)
         self.set_nodes()
 
         def coerce_recursive(widget, form):
@@ -114,6 +114,10 @@ class ZigguratForm(object):
         #         tmp_struct[field] = copy.deepcopy(kwargs[field])
         # pprint.pprint(tmp_struct.items())
         # self.non_coerced_data = peppercorn.parse(tmp_struct.items())
+
+    @property
+    def non_validated_data(self):
+        return self._coerced_data_holder
 
     def validate(self):
         # colander validation
@@ -136,20 +140,19 @@ class ZigguratForm(object):
         validate_widget(self.widget, self)
 
         try:
-            self.deserialized_data = self.schema_instance.deserialize(self.coerced_data_holder)
+            self.validated_data = self.schema_instance.deserialize(self._coerced_data_holder)
         except colander.Invalid as exc:
             self.valid = False
             self.schema_errors = exc.asdict()
-
         return self.valid
 
-    def populate_obj(self, obj):
-        """
-        Populates the attributes of the passed `obj` with data from the
-        deserialized colander data.
-        """
-        for node in self.schema_instance.children:
-            setattr(obj, node.name, self.data[node.name])
+    # def populate_obj(self, obj):
+    #     """
+    #     Populates the attributes of the passed `obj` with data from the
+    #     deserialized colander data.
+    #     """
+    #     for node in self.schema_instance.children:
+    #         setattr(obj, node.name, self.data[node.name])
 
     def __iter__(self):
         return iter(self.schema_instance.children)
