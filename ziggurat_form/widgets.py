@@ -154,6 +154,9 @@ class BaseWidget(object):
         else:
             log.error('something went wrong with field {}'.format(self.name))
 
+        # return default value if nothing was found
+        return self.node.default
+
     @property
     def coerced_data(self):
         p_widget = self.parent_widget
