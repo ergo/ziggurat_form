@@ -23,7 +23,10 @@ class DummyNode(object):
         self.name = name
         self.widget = widget
         self.required = colander.required
+        self.default = None
 
+    def serialize(self, data, *args, **kwargs):
+        return data
 
 class BaseWidget(object):
     _marker_type = None

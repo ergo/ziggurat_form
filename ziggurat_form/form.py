@@ -11,6 +11,11 @@ from ziggurat_form.widgets import (
     PositionalWidget
 )
 
+def coerce_recursive(widget, form):
+    widget.coerce()
+    if widget.children:
+        for child_widget in widget.children:
+            coerce_recursive(child_widget, form)
 
 class ZigguratForm(object):
     def __init__(self, schema_cls, bind_values=None, after_bind_callback=None):
@@ -96,12 +101,6 @@ class ZigguratForm(object):
             self._non_coerced_data = parsed_data
         self._coerced_data_holder = copy.deepcopy(self._non_coerced_data)
         self.set_nodes()
-
-        def coerce_recursive(widget, form):
-            widget.coerce()
-            if widget.children:
-                for child_widget in widget.children:
-                    coerce_recursive(child_widget, form)
 
         coerce_recursive(self.widget, self)
 
