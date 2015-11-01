@@ -94,6 +94,8 @@ class ZigguratForm(object):
 
     def set_data(self, struct=None, obj=None, **kwargs):
         """ Sets the data for form """
+        if struct is None:
+            struct = {}
         parsed_data = peppercorn.parse(struct.items())
         if '_ziggurat_form_field_' in parsed_data:
             self._non_coerced_data = parsed_data['_ziggurat_form_field_']
