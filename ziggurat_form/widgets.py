@@ -11,7 +11,7 @@ log = logging.getLogger(__name__)
 def while_parent(widget, path):
     if widget.position is not None:
         path.append(str(widget.position))
-    else:
+    elif widget.name:
         path.append(widget.name)
     if widget.parent_widget and not isinstance(widget.parent_widget, FormWidget):
         while_parent(widget.parent_widget, path)
