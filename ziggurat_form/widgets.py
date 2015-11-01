@@ -185,7 +185,7 @@ class BaseWidget(object):
                 val = self.node.missing
 
         if val is colander.null or self.blank_widget_data:
-            val = ''
+            val = None
         return val
 
 
@@ -333,8 +333,6 @@ class SelectWidget(BaseWidget):
 
     def __call__(self, values, *args, **kwargs):
         val = self.data
-        if val is colander.null or self.blank_widget_data:
-            val = ''
         kwargs['options'] = self.get_options(values)
         return tags.select(self.name, val, *args, **kwargs)
 
