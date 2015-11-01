@@ -179,6 +179,11 @@ class BaseWidget(object):
     @property
     def value(self):
         val = self.data
+
+        if val is colander.null:
+            if not self.node.required:
+                val = self.node.missing
+
         if val is colander.null or self.blank_widget_data:
             val = ''
         return val
