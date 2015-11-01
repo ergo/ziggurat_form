@@ -18,5 +18,4 @@ script:
 
 after_success:
   - pip install coveralls
-  - pip install coveralls
   - coveralls

@@ -22,6 +22,7 @@ class DummyNode(object):
     def __init__(self, name, widget=None):
         self.name = name
         self.widget = widget
+        self.required = colander.required
 
 
 class BaseWidget(object):
@@ -38,7 +39,6 @@ class BaseWidget(object):
         self.position = None
         self.node = None
         self.parent_widget = None
-        self.required = False
         self.blank_widget_data = blank_widget_data
 
     @property
@@ -83,9 +83,9 @@ class BaseWidget(object):
     def children(self):
         return None
 
-    # @property
-    # def required(self):
-    #     return self.field.required or len(self.validators) > 0
+    @property
+    def required(self):
+        return self.node.required or len(self.validators) > 0
 
     @property
     def label(self):
