@@ -70,4 +70,4 @@ class TestValidation(object):
             self.validate(form)
 
         # widget must have error
-        assert any(form.widget_errors.values()) is True
+        assert any(form.schema_errors.values()) is True
