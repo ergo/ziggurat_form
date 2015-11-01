@@ -149,12 +149,12 @@ class BaseWidget(object):
             if data and len(data) > self.position:
                 return data[self.position]
         elif parent_is_mapping:
-            if data and hasattr(data, 'get'):
-                return data.get(self.name)
-            elif data:
-                return data
+            if data and hasattr(data, 'get') and self.name in data:
+                return data[self.name]
         else:
             log.error('something went wrong with field {}'.format(self.name))
+
+        return colander.null
 
     @property
     def coerced_data(self):
@@ -170,11 +170,19 @@ class BaseWidget(object):
             if data and len(data) > self.position:
                 return data[self.position]
         elif parent_is_mapping:
-            if data and hasattr(data, 'get'):
-                return data.get(self.name)
+            if data and hasattr(data, 'get') and self.name in data:
+                return data[self.name]
         else:
             log.error('something went wrong with field {}'.format(self.name))
 
+        return colander.null
+
+    @property
+    def value(self):
+        val = self.data
+        if val is colander.null or self.blank_widget_data:
+            val = ''
+        return val
 
 class MappingWidget(BaseWidget):
     _marker_type = 'mapping'
@@ -263,53 +271,43 @@ class PositionalWidget(BaseWidget):
 
 class TextWidget(BaseWidget):
     def __call__(self, *args, **kwargs):
-        val = self.data
-        if val is colander.null or self.blank_widget_data:
-            val = ''
-        return tags.text(self.name, val, *args, **kwargs)
+        return tags.text(self.name, self.value, *args, **kwargs)
 
 
 class TextAreaWidget(BaseWidget):
     def __call__(self, *args, **kwargs):
-        val = self.data
-        if val is colander.null or self.blank_widget_data:
-            val = ''
-        return tags.textarea(self.name, val, *args, **kwargs)
+        return tags.textarea(self.name, self.value, *args, **kwargs)
 
 
 class PasswordWidget(BaseWidget):
     def __call__(self, *args, **kwargs):
-        val = self.data
-        if val is colander.null or self.blank_widget_data:
-            val = ''
-        return tags.password(self.name, val, *args, **kwargs)
+        return tags.password(self.name, self.value, *args, **kwargs)
 
 
 class CheckboxWidget(BaseWidget):
-    def __call__(self, *args, **kwargs):
+    @property
+    def value(self):
         val = self.data
         checked = True
         if val is colander.null or not val or self.blank_widget_data:
             checked = False
+        return checked
+
+    def __call__(self, *args, **kwargs):
         return tags.hidden(self.name, '', *args, **kwargs) \
-               + tags.checkbox(self.name, u'1', checked, *args, **kwargs)
+               + tags.checkbox(self.name, u'1', self.value, *args, **kwargs)
 
 
 class HiddenWidget(BaseWidget):
-
     @property
     def label(self):
         return ''
 
     def __call__(self, *args, **kwargs):
-        val = self.data
-        if val is colander.null or self.blank_widget_data:
-            val = ''
-        return tags.hidden(self.name, val, *args, **kwargs)
+        return tags.hidden(self.name, self.value, *args, **kwargs)
 
 
 class SelectWidget(BaseWidget):
-
     def convert(self, values):
         return [tags.Option(*reversed(option))
                 for option in values]
@@ -345,6 +343,18 @@ def confirm_validator(field):
 
 class ConfirmWidget(MappingWidget):
     _marker_type = 'mapping'
+
+    @property
+    def data(self):
+        data = super(ConfirmWidget, self).data
+        conf_name = self.node.name + '_confirm'
+        # the parent value might be single value or might be a dictionary
+        # of {name:foo, name_confirm:bar} depending if the form was submitted or not
+        if data and hasattr(data, 'items'):
+            return {self.name: data[self.name],
+                    conf_name: data.get(conf_name)}
+        else:
+            return {self.name: data, conf_name: ''}
 
     def __init__(self, widget_to_confirm, blank_confirm_widget=True, *args, **kwargs):
         super(ConfirmWidget, self).__init__(*args, **kwargs)
