@@ -1,6 +1,8 @@
 import pytest
-from .schemas import UserLoginSchema, group_schema
+import colander
 from ziggurat_form.form import ZigguratForm
+
+from .schemas import group_schema, UserLoginSchema, FieldDefaultsSchema
 
 
 class ValidationException(Exception):
@@ -71,3 +73,34 @@ class TestValidation(object):
 
         # widget must have error
         assert any(form.schema_errors.values()) is True
+
+    def test_missing_value(self):
+        data = {
+            'music': {
+                'artist': 'Alexey Efimov',
+                'album': 'Antona Valeka 15',
+                'song': 'foo',
+                'description': 'foo'
+            }
+        }
+        form = ZigguratForm(FieldDefaultsSchema)
+        form.set_data(data)
+        assert form.coerced_data_holder == {
+            'title': 'missing title',
+            'music': {
+                'title': 'missing title',
+                'artist': 'Alexey Efimov',
+                'album': 'Antona Valeka 15',
+                'song': 'foo',
+                'description': 'foo'
+            }
+        }
+        self.validate(form)
+
+    def test_default_value(self):
+        form = ZigguratForm(FieldDefaultsSchema)
+        form.set_data({})
+        music = form.widget.children[1]
+        assert music.children[0].data == 'Grandaddy'
+        assert music.children[1].data == 'Just Like the Fambly Cat'
+        assert music.children[2].data == colander.null
