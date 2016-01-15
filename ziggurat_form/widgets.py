@@ -13,7 +13,8 @@ def while_parent(widget, path):
         path.append(str(widget.position))
     elif widget.name:
         path.append(widget.name)
-    if widget.parent_widget and not isinstance(widget.parent_widget, FormWidget):
+    if widget.parent_widget and not \
+            isinstance(widget.parent_widget, FormWidget):
         while_parent(widget.parent_widget, path)
     return path
 
@@ -27,6 +28,7 @@ class DummyNode(object):
 
     def serialize(self, data, *args, **kwargs):
         return data
+
 
 class BaseWidget(object):
     _marker_type = None
@@ -50,10 +52,10 @@ class BaseWidget(object):
 
     def __str__(self):
         return '<{} {} of {}: p: {}>'.format(
-            self.__class__.__name__,
-            self.name,
-            self.parent_widget.name if self.parent_widget else '',
-            self.position
+                self.__class__.__name__,
+                self.name,
+                self.parent_widget.name if self.parent_widget else '',
+                self.position
         )
 
     def clone(self):
@@ -124,18 +126,15 @@ class BaseWidget(object):
     @property
     def marker_start(self):
         if self._marker_type is not None:
-            return tags.hidden(
-                '__start__',
-                '{}:{}'.format(self.name, self._marker_type),
-                id=None)
+            value = '{}:{}'.format(self.name, self._marker_type)
+            return tags.hidden('__start__', value, id=None)
         return ''
 
     @property
     def marker_end(self):
         if self._marker_type is not None:
-            return tags.hidden(
-                '__end__', '{}:{}'.format(self.name, self._marker_type),
-                id=None)
+            value = '{}:{}'.format(self.name, self._marker_type)
+            return tags.hidden('__end__', value, id=None)
         return ''
 
     @property
@@ -316,7 +315,6 @@ class HiddenWidget(BaseWidget):
 
 
 class SelectWidget(BaseWidget):
-
     def convert(self, values):
         return [tags.Option(*reversed(option))
                 for option in values]
@@ -325,11 +323,7 @@ class SelectWidget(BaseWidget):
         options = []
         if hasattr(values, 'items'):
             for group, option in values.items():
-                options.append(
-                    tags.OptGroup(
-                        group, self.convert(option)
-                    )
-                )
+                options.append(tags.OptGroup(group, self.convert(option)))
         else:
             options = self.convert(values)
         return options
@@ -363,7 +357,8 @@ class ConfirmWidget(MappingWidget):
         else:
             return {self.name: data, conf_name: ''}
 
-    def __init__(self, widget_to_confirm, blank_confirm_widget=True, *args, **kwargs):
+    def __init__(self, widget_to_confirm, blank_confirm_widget=True, *args,
+                 **kwargs):
         super(ConfirmWidget, self).__init__(*args, **kwargs)
         self.widget_to_confirm = widget_to_confirm
         self.org_node = None
